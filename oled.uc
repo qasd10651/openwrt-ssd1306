@@ -4,6 +4,7 @@ import { pack } from 'struct';
 const CMD = {
     INIT: 0x01, CLEAR: 0x02, DISPLAY: 0x03, INVERT_DISPLAY: 0x04,
     SET_ROTATION: 0x05, DISPLAY_ROTATE: 0x06, DISPLAY_NORMAL: 0x07, INIT_COL_PG: 0x08,
+    DISPLAY_ON: 0x40, DISPLAY_OFF: 0x41,
     SET_CURSOR: 0x10, SET_TEXT_SIZE: 0x11, SET_TEXT_COLOR: 0x12, SET_TEXT_WRAP: 0x13, PRINT_STR: 0x14,
     DRAW_PIXEL: 0x20, DRAW_LINE: 0x21, DRAW_RECT: 0x22, FILL_RECT: 0x23,
     DRAW_CIRCLE: 0x24, FILL_CIRCLE: 0x25, DRAW_TRIANGLE: 0x26, FILL_TRIANGLE: 0x27,
@@ -54,6 +55,8 @@ function create_oled() {
         initColPg: function(c_s, c_e, p_s, p_e) { 
             send(pack('BBBBB', CMD.INIT_COL_PG, c_s, c_e, p_s, p_e)); 
         },
+        displayOn: function() { send(pack('B', CMD.DISPLAY_ON)); },
+        displayOff: function() { send(pack('B', CMD.DISPLAY_OFF)); },
         
         // ================= 文字設定 =================
         // 注意：這裡將 1Byte 的 Opcode 與 2Bytes 的 short 分開 pack 來避免 Padding 錯位
@@ -77,6 +80,8 @@ function create_oled() {
         fillTriangle: function(x0, y0, x1, y1, x2, y2, c) { send(pack('B', CMD.FILL_TRIANGLE) + pack('hhhhhhh', x0, y0, x1, y1, x2, y2, c)); },
         drawRoundRect: function(x, y, w, h, r, c) { send(pack('B', CMD.DRAW_ROUND_RECT) + pack('hhhhhh', x, y, w, h, r, c)); },
         fillRoundRect: function(x, y, w, h, r, c) { send(pack('B', CMD.FILL_ROUND_RECT) + pack('hhhhhh', x, y, w, h, r, c)); },
+        
+        drawBitmap: function(x, y, w, h, c, bmp) { send(pack('B', CMD.DRAW_BITMAP) + pack('hhhhh', x, y, w, h, c) + bmp); },
         
         // ================= 捲動控制 =================
         scrollRight: function(start, stop) { send(pack('BBB', CMD.SCROLL_RIGHT, start, stop)); },
