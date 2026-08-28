@@ -76,17 +76,26 @@ unsigned char read_byte(int fd) {
 
 int main() {
     mkfifo(FIFO_PATH, 0666);
-    int fd = open(FIFO_PATH, O_RDONLY);
-    if (fd < 0) return -1;
+    if (init_i2c_dev(I2C_DEV0_PATH, 0x3C) < 0) {
+        fprintf(stderr, "I2C Init failed, exit for procd retry...\n");
+        exit(1);
+    }
+    display_Init_seq();
+
+    int fifo_fd = open(FIFO_PATH, O_RDONLY);
+    if (fifo_fd < 0) exit(1);
 
     unsigned char cmd;
-    int i2c_initialized = 0;
 
     while (1) {
-        if (read(fd, &cmd, 1) <= 0) {
-            close(fd);
-            fd = open(FIFO_PATH, O_RDONLY);
+        ssize_t bytes_read = read(fifo_fd, &cmd, 1);
+
+        if (bytes_read == 0) {
+            close(fifo_fd);
+            fifo_fd = open(FIFO_PATH, O_RDONLY);
             continue;
+        } else if (bytes_read < 0) {
+            exit(1);
         }
 
         switch(cmd) {
