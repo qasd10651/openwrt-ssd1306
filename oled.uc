@@ -12,15 +12,34 @@ const CMD = {
 };
 
 function create_oled() {
-    let fd = open("/tmp/oled_fifo", 'w');
-    if (!fd) {
-        die("無法開啟 FIFO 檔案 /tmp/oled_fifo\n");
+    let fd = null;
+
+    try {
+        fd = open("/tmp/oled_fifo", 'w+');
+    } catch (e) {
+        fd = null;
     }
 
-    // 內部傳送函數：確保 Flush
     function send(data) {
-        fd.write(data);
-        fd.flush(); 
+        if (!fd) {
+            try {
+                fd = open("/tmp/oled_fifo", 'w+');
+            } catch (e) {
+                fd = null;
+                return false;
+            }
+        }
+
+        try {
+            let header = pack('BB', 0xAA, 0x55);
+            fd.write(header + data);
+            fd.flush();
+            return true;
+        } catch (e) {
+            try { fd.close(); } catch(err) {}
+            fd = null;
+            return false;
+        }
     }
 
     return {
@@ -66,7 +85,12 @@ function create_oled() {
         scrollDiagLeft: function(start, stop) { send(pack('BBB', CMD.SCROLL_DIAG_LEFT, start, stop)); },
         scrollStop: function() { send(pack('B', CMD.SCROLL_STOP)); },
         
-        close: function() { fd.close(); }
+        close: function() { 
+            if (fd) {
+                try { fd.close(); } catch(e) {}
+                fd = null;
+            }
+        }
     };
 }
 
