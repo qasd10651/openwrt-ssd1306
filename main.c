@@ -73,9 +73,25 @@ unsigned char read_byte(int fd) {
     return val;
 }
 
+void flush_fifo(int fd) {
+    char dummy[1024];
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    while (read(fd, dummy, sizeof(dummy)) > 0) {
+        // do nothing
+    }
+
+    fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+}
+
 int main() {
-    unlink(FIFO_PATH);
-    mkfifo(FIFO_PATH, 0666);
+    if (access(FIFO_PATH, F_OK) == -1) {
+        if (mkfifo(FIFO_PATH, 0666) < 0) {
+            perror("mkfifo failed");
+            exit(1);
+        }
+    }
     
     if (init_i2c_dev(I2C_DEV0_PATH, 0x3C) < 0) {
         fprintf(stderr, "I2C Init failed, exit for procd retry...\n");
@@ -83,8 +99,12 @@ int main() {
     }
     display_Init_seq();
 
-    int fd = open(FIFO_PATH, O_RDONLY);
-    if (fd < 0) exit(1);
+    int fd = open(FIFO_PATH, O_RDWR);
+    if (fd < 0) {
+        perror("open FIFO failed");
+        exit(1);
+    }
+    flush_fifo(fd);
 
     unsigned char cmd;
 
@@ -92,8 +112,7 @@ int main() {
         ssize_t bytes_read = read(fd, &cmd, 1);
 
         if (bytes_read == 0) {
-            close(fd);
-            fd = open(FIFO_PATH, O_RDONLY);
+            usleep(100000);
             continue;
         } else if (bytes_read < 0) {
             exit(1);
