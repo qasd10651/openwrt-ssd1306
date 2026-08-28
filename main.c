@@ -9,6 +9,7 @@
 #include "SSD1306_OLED.h"
 
 #define FIFO_PATH "/tmp/oled_fifo"
+#define MAX_STR_LEN 512
 
 enum {
     // 系統與控制 (0x01 ~ 0x0F)
@@ -50,13 +51,14 @@ enum {
 };
 
 // 輔助函數：精確讀取資料
-void read_exact(int fd, void *buf, size_t count) {
+bool read_exact(int fd, void *buf, size_t count) {
     size_t total = 0;
     while (total < count) {
         ssize_t n = read(fd, (char *)buf + total, count - total);
-        if (n <= 0) break;
+        if (n <= 0) return false;
         total += n;
     }
+    return true;
 }
 
 // 輔助函數：讀取 2 Bytes 的 short (適用於座標 x, y, w, h)
@@ -71,6 +73,18 @@ unsigned char read_byte(int fd) {
     unsigned char val;
     read_exact(fd, &val, 1);
     return val;
+}
+
+bool sync_header(int fd) {
+    unsigned char b1 = 0, b2 = 0;
+    while (1) {
+        ssize_t n = read(fd, &b2, 1);
+        if (n <= 0) return false;
+        if (b1 == 0xAA && b2 == 0x55) {
+            return true; 
+        }
+        b1 = b2;
+    }
 }
 
 void flush_fifo(int fd) {
@@ -109,8 +123,12 @@ int main() {
     unsigned char cmd;
 
     while (1) {
+        if (!sync_header(fd)) {
+            usleep(10000);
+            continue;
+        }
+        
         ssize_t bytes_read = read(fd, &cmd, 1);
-
         if (bytes_read == 0) {
             usleep(100000);
             continue;
@@ -144,12 +162,18 @@ int main() {
             case CMD_SET_TEXT_COLOR: setTextColor(read_short(fd)); break;
             case CMD_SET_TEXT_WRAP: setTextWrap((bool)read_byte(fd)); break;
             case CMD_PRINT_STR: {
-                short len = read_short(fd);
+                short len;
+                if (!read_short(fd, &len) || len <= 0 || len > MAX_STR_LEN) {
+                    break;
+                }
                 char *str = malloc(len + 1);
-                read_exact(fd, str, len);
-                str[len] = '\0';
-                print_str((unsigned char*)str);
-                free(str);
+                if (str) {
+                    if (read_exact(fd, str, len)) {
+                        str[len] = '\0';
+                        print_str((unsigned char*)str);
+                    }
+                    free(str);
+                }
                 break;
             }
 
@@ -204,6 +228,7 @@ int main() {
             case CMD_DRAW_BITMAP: {
                 short x = read_short(fd), y = read_short(fd);
                 short w = read_short(fd), h = read_short(fd), c = read_short(fd);
+                if (w <= 0 || h <= 0 || w > 128 || h > 64) break;
                 int bytes = ((w + 7) / 8) * h; // 計算 Bitmap 需要的位元組數
                 unsigned char *bmp = malloc(bytes);
                 read_exact(fd, bmp, bytes);
@@ -225,6 +250,9 @@ int main() {
                 break;
             }
             case CMD_SCROLL_STOP: stopscroll(); break;
+
+            default:
+                break;
         }
     }
     return 0;
