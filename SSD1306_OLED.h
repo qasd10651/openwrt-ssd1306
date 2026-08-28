@@ -163,8 +163,9 @@ extern unsigned char getRotation();
 extern void invertDisplay(unsigned char i);
 extern void display_rotate();
 extern void display_normal();
-extern void display_on();
-extern void display_off();
+
+extern int display_on();
+extern int display_off();
 
 /*SSD1306 Graphics Handling API's */
 extern signed char drawPixel(short x, short y, short color);
