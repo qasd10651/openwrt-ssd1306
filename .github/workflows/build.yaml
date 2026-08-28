@@ -1,0 +1,50 @@
+name: Build OLED CLI Binary
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ramips/mt76x8
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl xz-utils zstd
+
+      - name: Download OpenWrt SDK
+        run: |
+          # 使用你指定的 24.10.8 SDK
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.8/targets/ramips/mt76x8/openwrt-sdk-24.10.8-ramips-mt76x8_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+          
+          echo "Downloading SDK..."
+          curl -L $SDK_URL -o sdk.tar.zst
+          
+          # 加上 -I zstd 參數來解壓縮 .zst 檔案
+          tar -I zstd -xf sdk.tar.zst
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Cross-Compile OLED CLI
+        run: |
+          # 設定環境變數
+          export STAGING_DIR=$(pwd)/openwrt-sdk/staging_dir
+          export TOOLCHAIN_DIR=$(ls -d $STAGING_DIR/toolchain-*)
+          export PATH=$TOOLCHAIN_DIR/bin:$PATH
+          
+          # 自動尋找 gcc 編譯器
+          GCC_BIN=$(find $TOOLCHAIN_DIR/bin -name "*-gcc" | head -n 1)
+          
+          echo "使用編譯器: $GCC_BIN"
+          
+          # 執行編譯
+          $GCC_BIN -O2 -o oled_cli main.c I2C.c SSD1306_OLED.c
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: oled_cli_mt76x8
+          path: oled_cli
