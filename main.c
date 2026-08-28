@@ -37,11 +37,11 @@ int main() {
 
             // ================= [系統與控制指令] =================
             if (strcmp(cmd, "CLEAR") == 0) {
-                clearDisplay();[cite: 3]
+                clearDisplay();
                 need_display = 1;
             } 
             else if (strcmp(cmd, "DISPLAY") == 0) {
-                Display();[cite: 3]
+                Display();
                 need_display = 0; 
             }
             else if (strcmp(cmd, "INVERT") == 0) {
@@ -50,76 +50,76 @@ int main() {
             }
             else if (strcmp(cmd, "ROTATION") == 0) {
                 sscanf(buffer, "%*s %d", &x);
-                setRotation((unsigned char)x); // 0~3[cite: 3]
+                setRotation((unsigned char)x); // 0~3
             }
 
             // ================= [文字相關指令] =================
             else if (strcmp(cmd, "CURSOR") == 0) {
                 sscanf(buffer, "%*s %d %d", &x, &y);
-                setCursor(x, y);[cite: 3]
+                setCursor(x, y);
             }
             else if (strcmp(cmd, "TEXTSIZE") == 0) {
                 sscanf(buffer, "%*s %d", &size);
-                setTextSize((unsigned char)size);[cite: 3]
+                setTextSize((unsigned char)size);
             }
             else if (strcmp(cmd, "PRINT") == 0) {
                 // %[^\n] 代表讀取直到遇到換行符號為止，保留空格
                 sscanf(buffer, "%*s %[^\n]", str_arg);
-                print_str((unsigned char*)str_arg);[cite: 3]
+                print_str((unsigned char*)str_arg);
                 need_display = 1;
             }
 
             // ================= [基本圖形指令] =================
             else if (strcmp(cmd, "PIXEL") == 0) {
                 sscanf(buffer, "%*s %d %d %d", &x, &y, &color);
-                drawPixel(x, y, color);[cite: 3]
+                drawPixel(x, y, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "LINE") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d %d", &x, &y, &x1, &y1, &color);
-                drawLine(x, y, x1, y1, color);[cite: 3]
+                drawLine(x, y, x1, y1, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "RECT") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d %d", &x, &y, &w, &h, &color);
-                drawRect(x, y, w, h, color);[cite: 3]
+                drawRect(x, y, w, h, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "FILLRECT") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d %d", &x, &y, &w, &h, &color);
-                fillRect(x, y, w, h, color);[cite: 3]
+                fillRect(x, y, w, h, color);
                 need_display = 1;
             }
 
             // ================= [進階圖形指令] =================
             else if (strcmp(cmd, "CIRCLE") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d", &x, &y, &r, &color);
-                drawCircle(x, y, r, color);[cite: 3]
+                drawCircle(x, y, r, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "FILLCIRCLE") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d", &x, &y, &r, &color);
-                fillCircle(x, y, r, color);[cite: 3]
+                fillCircle(x, y, r, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "TRIANGLE") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d %d %d %d", &x, &y, &x1, &y1, &x2, &y2, &color);
-                drawTriangle(x, y, x1, y1, x2, y2, color);[cite: 3]
+                drawTriangle(x, y, x1, y1, x2, y2, color);
                 need_display = 1;
             }
             else if (strcmp(cmd, "ROUNDRECT") == 0) {
                 sscanf(buffer, "%*s %d %d %d %d %d %d", &x, &y, &w, &h, &r, &color);
-                drawRoundRect(x, y, w, h, r, color);[cite: 3]
+                drawRoundRect(x, y, w, h, r, color);
                 need_display = 1;
             }
 
             // ================= [硬體捲動指令] =================
             else if (strcmp(cmd, "SCROLL_R") == 0) {
                 sscanf(buffer, "%*s %d %d", &start, &stop);
-                startscrollright((unsigned char)start, (unsigned char)stop);[cite: 3]
+                startscrollright((unsigned char)start, (unsigned char)stop);
             }
             else if (strcmp(cmd, "SCROLL_STOP") == 0) {
-                stopscroll();[cite: 3]
+                stopscroll();
             }
         }
         
