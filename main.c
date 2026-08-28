@@ -162,8 +162,8 @@ int main() {
             case CMD_SET_TEXT_COLOR: setTextColor(read_short(fd)); break;
             case CMD_SET_TEXT_WRAP: setTextWrap((bool)read_byte(fd)); break;
             case CMD_PRINT_STR: {
-                short len;
-                if (!read_short(fd, &len) || len <= 0 || len > MAX_STR_LEN) {
+                short len = read_short(fd);
+                if (len <= 0 || len > MAX_STR_LEN) {
                     break;
                 }
                 char *str = malloc(len + 1);
