@@ -4,25 +4,53 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include "I2C.h"
 #include "SSD1306_OLED.h"
 
 #define FIFO_PATH "/tmp/oled_fifo"
 
-// 定義二進制操作碼 (Opcodes)
+// 暴力展開所有 API 的 Opcode
 enum {
-    CMD_INIT      = 0x01,
-    CMD_CLEAR     = 0x02,
-    CMD_DISPLAY   = 0x03,
-    CMD_CURSOR    = 0x04, // 參數: x(1), y(1)
-    CMD_TEXTCOLOR = 0x05, // 參數: color(1)
-    CMD_TEXTSIZE  = 0x06, // 參數: size(1)
-    CMD_PRINT     = 0x07, // 參數: len(1), string(len)
-    CMD_RECT      = 0x08, // 參數: x(1), y(1), w(1), h(1), color(1)
-    CMD_BITMAP    = 0x09  // 參數: x(1), y(1), w(1), h(1), color(1), data(w*h/8)
+    // 系統與控制 (0x01 ~ 0x0F)
+    CMD_INIT = 0x01,
+    CMD_CLEAR = 0x02,
+    CMD_DISPLAY = 0x03,
+    CMD_INVERT_DISPLAY = 0x04,
+    CMD_SET_ROTATION = 0x05,
+    CMD_DISPLAY_ROTATE = 0x06,
+    CMD_DISPLAY_NORMAL = 0x07,
+    CMD_INIT_COL_PG = 0x08,
+
+    // 文字相關 (0x10 ~ 0x1F)
+    CMD_SET_CURSOR = 0x10,
+    CMD_SET_TEXT_SIZE = 0x11,
+    CMD_SET_TEXT_COLOR = 0x12,
+    CMD_SET_TEXT_WRAP = 0x13,
+    CMD_PRINT_STR = 0x14,
+
+    // 基本與進階圖形 (0x20 ~ 0x2F)
+    CMD_DRAW_PIXEL = 0x20,
+    CMD_DRAW_LINE = 0x21,
+    CMD_DRAW_RECT = 0x22,
+    CMD_FILL_RECT = 0x23,
+    CMD_DRAW_CIRCLE = 0x24,
+    CMD_FILL_CIRCLE = 0x25,
+    CMD_DRAW_TRIANGLE = 0x26,
+    CMD_FILL_TRIANGLE = 0x27,
+    CMD_DRAW_ROUND_RECT = 0x28,
+    CMD_FILL_ROUND_RECT = 0x29,
+    CMD_DRAW_BITMAP = 0x2A,
+
+    // 硬體捲動 (0x30 ~ 0x3F)
+    CMD_SCROLL_RIGHT = 0x30,
+    CMD_SCROLL_LEFT = 0x31,
+    CMD_SCROLL_DIAG_RIGHT = 0x32,
+    CMD_SCROLL_DIAG_LEFT = 0x33,
+    CMD_SCROLL_STOP = 0x34
 };
 
-// 輔助函數：確保完整讀取指定長度的二進制資料
+// 輔助函數：精確讀取資料
 void read_exact(int fd, void *buf, size_t count) {
     size_t total = 0;
     while (total < count) {
@@ -32,73 +60,147 @@ void read_exact(int fd, void *buf, size_t count) {
     }
 }
 
+// 輔助函數：讀取 2 Bytes 的 short (適用於座標 x, y, w, h)
+short read_short(int fd) {
+    short val;
+    read_exact(fd, &val, sizeof(short));
+    return val;
+}
+
+// 輔助函數：讀取 1 Byte 的 unsigned char
+unsigned char read_byte(int fd) {
+    unsigned char val;
+    read_exact(fd, &val, 1);
+    return val;
+}
+
 int main() {
-    // 啟動時不初始化 I2C，僅建立 FIFO
     mkfifo(FIFO_PATH, 0666);
     int fd = open(FIFO_PATH, O_RDONLY);
     if (fd < 0) return -1;
 
     unsigned char cmd;
-    unsigned char args[8];
     int i2c_initialized = 0;
 
     while (1) {
-        // 讀取 1 Byte 的操作碼 (若無寫入者會阻塞等待，無消耗)
         if (read(fd, &cmd, 1) <= 0) {
             close(fd);
-            fd = open(FIFO_PATH, O_RDONLY); // 重新阻塞監聽
+            fd = open(FIFO_PATH, O_RDONLY);
             continue;
         }
 
         switch(cmd) {
+            // ================= 系統與控制 =================
             case CMD_INIT:
                 if (!i2c_initialized) {
-                    init_i2c_dev("/dev/i2c-0", 0x3C); //[cite: 4]
+                    init_i2c_dev("/dev/i2c-0", 0x3C);
                     i2c_initialized = 1;
                 }
-                display_Init_seq(); //[cite: 2]
-                setTextColor(WHITE); //[cite: 3]
+                display_Init_seq();
                 break;
-                
-            case CMD_CLEAR:
-                clearDisplay(); //[cite: 2]
+            case CMD_CLEAR: clearDisplay(); break;
+            case CMD_DISPLAY: Display(); break;
+            case CMD_INVERT_DISPLAY: invertDisplay(read_byte(fd)); break;
+            case CMD_SET_ROTATION: setRotation(read_byte(fd)); break;
+            case CMD_DISPLAY_ROTATE: display_rotate(); break;
+            case CMD_DISPLAY_NORMAL: display_normal(); break;
+            case CMD_INIT_COL_PG: {
+                unsigned char c_s = read_byte(fd), c_e = read_byte(fd);
+                unsigned char p_s = read_byte(fd), p_e = read_byte(fd);
+                Init_Col_PG_addrs(c_s, c_e, p_s, p_e);
                 break;
-                
-            case CMD_DISPLAY:
-                Display(); //[cite: 2]
+            }
+
+            // ================= 文字設定 =================
+            case CMD_SET_CURSOR: {
+                short x = read_short(fd), y = read_short(fd);
+                setCursor(x, y); break;
+            }
+            case CMD_SET_TEXT_SIZE: setTextSize(read_byte(fd)); break;
+            case CMD_SET_TEXT_COLOR: setTextColor(read_short(fd)); break;
+            case CMD_SET_TEXT_WRAP: setTextWrap((bool)read_byte(fd)); break;
+            case CMD_PRINT_STR: {
+                short len = read_short(fd);
+                char *str = malloc(len + 1);
+                read_exact(fd, str, len);
+                str[len] = '\0';
+                print_str((unsigned char*)str);
+                free(str);
                 break;
-                
-            case CMD_CURSOR:
-                read_exact(fd, args, 2);
-                setCursor(args[0], args[1]); //[cite: 3]
+            }
+
+            // ================= 繪圖 API =================
+            case CMD_DRAW_PIXEL: {
+                short x = read_short(fd), y = read_short(fd), c = read_short(fd);
+                drawPixel(x, y, c); break;
+            }
+            case CMD_DRAW_LINE: {
+                short x0 = read_short(fd), y0 = read_short(fd);
+                short x1 = read_short(fd), y1 = read_short(fd), c = read_short(fd);
+                drawLine(x0, y0, x1, y1, c); break;
+            }
+            case CMD_DRAW_RECT: {
+                short x = read_short(fd), y = read_short(fd);
+                short w = read_short(fd), h = read_short(fd), c = read_short(fd);
+                drawRect(x, y, w, h, c); break;
+            }
+            case CMD_FILL_RECT: {
+                short x = read_short(fd), y = read_short(fd);
+                short w = read_short(fd), h = read_short(fd), c = read_short(fd);
+                fillRect(x, y, w, h, c); break;
+            }
+            case CMD_DRAW_CIRCLE: {
+                short x = read_short(fd), y = read_short(fd);
+                short r = read_short(fd), c = read_short(fd);
+                drawCircle(x, y, r, c); break;
+            }
+            case CMD_FILL_CIRCLE: {
+                short x = read_short(fd), y = read_short(fd);
+                short r = read_short(fd), c = read_short(fd);
+                fillCircle(x, y, r, c); break;
+            }
+            case CMD_DRAW_TRIANGLE:
+            case CMD_FILL_TRIANGLE: {
+                short x0 = read_short(fd), y0 = read_short(fd);
+                short x1 = read_short(fd), y1 = read_short(fd);
+                short x2 = read_short(fd), y2 = read_short(fd), c = read_short(fd);
+                if (cmd == CMD_DRAW_TRIANGLE) drawTriangle(x0, y0, x1, y1, x2, y2, c);
+                else fillTriangle(x0, y0, x1, y1, x2, y2, c);
                 break;
-                
-            case CMD_TEXTCOLOR:
-                read_exact(fd, args, 1);
-                setTextColor(args[0]); //[cite: 3]
+            }
+            case CMD_DRAW_ROUND_RECT:
+            case CMD_FILL_ROUND_RECT: {
+                short x = read_short(fd), y = read_short(fd);
+                short w = read_short(fd), h = read_short(fd);
+                short r = read_short(fd), c = read_short(fd);
+                if (cmd == CMD_DRAW_ROUND_RECT) drawRoundRect(x, y, w, h, r, c);
+                else fillRoundRect(x, y, w, h, r, c);
                 break;
-                
-            case CMD_TEXTSIZE:
-                read_exact(fd, args, 1);
-                setTextSize(args[0]); //[cite: 3]
+            }
+            case CMD_DRAW_BITMAP: {
+                short x = read_short(fd), y = read_short(fd);
+                short w = read_short(fd), h = read_short(fd), c = read_short(fd);
+                int bytes = ((w + 7) / 8) * h; // 計算 Bitmap 需要的位元組數
+                unsigned char *bmp = malloc(bytes);
+                read_exact(fd, bmp, bytes);
+                drawBitmap(x, y, bmp, w, h, c);
+                free(bmp);
                 break;
-                
-            case CMD_PRINT:
-                {
-                    unsigned char len;
-                    read_exact(fd, &len, 1); // 先讀取字串長度
-                    char *str = malloc(len + 1);
-                    read_exact(fd, str, len);
-                    str[len] = '\0'; // 確保字串結尾
-                    print_str((unsigned char*)str); //[cite: 3]
-                    free(str);
-                }
+            }
+
+            // ================= 捲動控制 =================
+            case CMD_SCROLL_RIGHT:
+            case CMD_SCROLL_LEFT:
+            case CMD_SCROLL_DIAG_RIGHT:
+            case CMD_SCROLL_DIAG_LEFT: {
+                unsigned char start = read_byte(fd), stop = read_byte(fd);
+                if (cmd == CMD_SCROLL_RIGHT) startscrollright(start, stop);
+                if (cmd == CMD_SCROLL_LEFT) startscrollleft(start, stop);
+                if (cmd == CMD_SCROLL_DIAG_RIGHT) startscrolldiagright(start, stop);
+                if (cmd == CMD_SCROLL_DIAG_LEFT) startscrolldiagleft(start, stop);
                 break;
-                
-            case CMD_RECT:
-                read_exact(fd, args, 5);
-                drawRect(args[0], args[1], args[2], args[3], args[4]); //[cite: 3]
-                break;
+            }
+            case CMD_SCROLL_STOP: stopscroll(); break;
         }
     }
     return 0;
