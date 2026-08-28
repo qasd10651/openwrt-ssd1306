@@ -93,7 +93,7 @@ int main() {
             // ================= 系統與控制 =================
             case CMD_INIT:
                 if (!i2c_initialized) {
-                    init_i2c_dev("/dev/i2c-0", 0x3C);
+                    init_i2c_dev(I2C_DEV0_PATH, 0x3C);
                     i2c_initialized = 1;
                 }
                 display_Init_seq();
