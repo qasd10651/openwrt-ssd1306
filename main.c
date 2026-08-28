@@ -74,7 +74,7 @@ unsigned char read_byte(int fd) {
 }
 
 int main() {
-    unlink(FIFO_NAME);
+    unlink(FIFO_PATH);
     mkfifo(FIFO_PATH, 0666);
     
     if (init_i2c_dev(I2C_DEV0_PATH, 0x3C) < 0) {
