@@ -74,7 +74,9 @@ unsigned char read_byte(int fd) {
 }
 
 int main() {
+    unlink(FIFO_NAME);
     mkfifo(FIFO_PATH, 0666);
+    
     if (init_i2c_dev(I2C_DEV0_PATH, 0x3C) < 0) {
         fprintf(stderr, "I2C Init failed, exit for procd retry...\n");
         exit(1);
