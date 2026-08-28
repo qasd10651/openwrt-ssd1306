@@ -2376,10 +2376,10 @@ short printFloat_ln(double num, int digits) {
 }
 
 
-int display_on(void) {
+int display_on() {
     return i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYON);
 }
 
-int display_off(void) {
+int display_off() {
     return i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAY_OFF);
 }
