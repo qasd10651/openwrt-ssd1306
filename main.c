@@ -10,7 +10,6 @@
 
 #define FIFO_PATH "/tmp/oled_fifo"
 
-// 暴力展開所有 API 的 Opcode
 enum {
     // 系統與控制 (0x01 ~ 0x0F)
     CMD_INIT = 0x01,
@@ -82,17 +81,17 @@ int main() {
     }
     display_Init_seq();
 
-    int fifo_fd = open(FIFO_PATH, O_RDONLY);
-    if (fifo_fd < 0) exit(1);
+    int fd = open(FIFO_PATH, O_RDONLY);
+    if (fd < 0) exit(1);
 
     unsigned char cmd;
 
     while (1) {
-        ssize_t bytes_read = read(fifo_fd, &cmd, 1);
+        ssize_t bytes_read = read(fd, &cmd, 1);
 
         if (bytes_read == 0) {
-            close(fifo_fd);
-            fifo_fd = open(FIFO_PATH, O_RDONLY);
+            close(fd);
+            fd = open(FIFO_PATH, O_RDONLY);
             continue;
         } else if (bytes_read < 0) {
             exit(1);
