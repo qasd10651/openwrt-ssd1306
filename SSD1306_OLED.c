@@ -2374,3 +2374,12 @@ short printFloat_ln(double num, int digits) {
 	n += println();
 	return n;
 }
+
+
+int display_on(void) {
+    return i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYON);
+}
+
+int display_off(void) {
+    return i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAY_OFF);
+}
