@@ -21,6 +21,8 @@ enum {
     CMD_DISPLAY_ROTATE = 0x06,
     CMD_DISPLAY_NORMAL = 0x07,
     CMD_INIT_COL_PG = 0x08,
+    CMD_DISPLAY_ON = 0x40,
+    CMD_DISPLAY_OFF = 0x41,
 
     // 文字相關 (0x10 ~ 0x1F)
     CMD_SET_CURSOR = 0x10,
@@ -152,6 +154,9 @@ int main() {
                 Init_Col_PG_addrs(c_s, c_e, p_s, p_e);
                 break;
             }
+
+            case CMD_DISPLAY_ON: display_on(); break;
+            case CMD_DISPLAY_OFF: display_off(); break;
 
             // ================= 文字設定 =================
             case CMD_SET_CURSOR: {
